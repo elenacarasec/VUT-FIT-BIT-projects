@@ -1,0 +1,265 @@
+#!/bin/sh 
+
+#author: Elena Carasec
+#date: 2020-03-26
+export POSIXLY_CORRECT=yes
+DIR=$(pwd)
+ND=0
+NF=0
+FILE_ERE=''
+normalisation=1
+cols=79
+num_of_sharps_to_print=0
+position=0
+biggest=0
+
+#prints "#" 
+print_sharp(){
+	if [ "$normalisation" -eq 1 ]
+	then
+		eval "cnt=\${files_size_arr$position}"
+	elif [ "$cols" -gt "$biggest" ]
+	then
+		eval "cnt=\${files_size_arr$position}"
+	else
+		cnt=$num_of_sharps_to_print
+	fi
+
+	while [ $cnt -gt 0 ]
+	do
+		printf "#" 
+		cnt=$((cnt - 1))
+	done
+	position=$((position + 1))
+}
+
+#print default histogram
+print_default(){
+	printf "%s" "  <100 B  : "
+	print_sharp
+	printf "\n%s" "  <1 KiB  : "
+	print_sharp 
+	printf "\n%s" "  <10 KiB : "
+	print_sharp
+	printf "\n%s" "  <100 KiB: "
+	print_sharp
+	printf "\n%s" "  <1 MiB  : "
+	print_sharp
+	printf "\n%s" "  <10 MiB : "
+	print_sharp
+	printf "\n%s" "  <100 MiB: "
+	print_sharp
+	printf "\n%s" "  <1 GiB  : "
+	print_sharp
+	printf "\n%s" "  >=1 GiB : "
+	print_sharp
+	printf "\n"
+}
+
+number_of_sharps_to_print(){
+	if [ "${biggest:?}" -gt 0 ]
+	then
+		eval "local fsa=\$files_size_arr$position"
+		num_of_sharps_to_print=$((${fsa:?} * cols))
+		num_of_sharps_to_print=$((num_of_sharps_to_print / biggest))
+	else
+		num_of_sharps_to_print=0
+	fi
+	print_sharp num_of_sharps_to_print
+}
+
+find_the_biggest_number(){
+	i=0
+	eval "biggest=\$files_size_arr$i"
+	while [ "$i" -lt 8 ]
+	do
+		eval "local fsa=\$files_size_arr$i"
+		if [ "$biggest" -lt "$fsa" ]
+		then
+			eval "biggest=\$files_size_arr$i"
+		fi
+		i=$((i + 1))
+	done
+}
+
+#print normalised histogram
+print_normalised(){
+	
+	printf "%s" "  <100 B  : "
+	number_of_sharps_to_print biggest
+	printf "\n%s" "  <1 KiB  : "
+	number_of_sharps_to_print biggest
+	printf "\n%s" "  <10 KiB : "
+	number_of_sharps_to_print biggest
+	printf "\n%s" "  <100 KiB: "
+	number_of_sharps_to_print biggest
+	printf "\n%s" "  <1 MiB  : "
+	number_of_sharps_to_print biggest
+	printf "\n%s" "  <10 MiB : "
+	number_of_sharps_to_print biggest
+	printf "\n%s" "  <100 MiB: "
+	number_of_sharps_to_print biggest
+	printf "\n%s" "  <1 GiB  : "
+	number_of_sharps_to_print biggest
+	printf "\n%s" "  >=1 GiB : "
+	number_of_sharps_to_print biggest
+	printf "\n"
+}
+
+num_of_files_by_size(){
+	eval "fsa1=\$files_size_arr$i"
+	eval "fsa2=\$files_size_arr$((i - 1))"
+	eval "files_size_arr$i=$((${fsa1:?} - ${fsa2:?}))"
+}
+
+count_files_size(){
+	i=0
+	eval "files_size_arr$i=$(find "$DIR" -type f -size -100c ! -name ".*" -exec du --exclude="$FILE_ERE" -a {} + 2>/dev/null| wc -l)"
+
+	i=1
+	eval "files_size_arr$i=$(find "$DIR" -type f -size -1024c ! -name ".*" -exec du --exclude="$FILE_ERE" -a {} + 2>/dev/null| wc -l)"
+
+	i=2
+	eval "files_size_arr$i=$(find "$DIR" -type f -size -10k ! -name ".*" -exec du --exclude="$FILE_ERE" -a {} + 2>/dev/null| wc -l)"
+
+	i=3
+	eval "files_size_arr$i=$(find "$DIR" -type f -size -100k ! -name ".*" -exec du --exclude="$FILE_ERE" -a {} + 2>/dev/null| wc -l)"
+
+	i=4
+	eval "files_size_arr$i=$(find "$DIR" -type f -size -1024k ! -name ".*" -exec du --exclude="$FILE_ERE" -a {} + 2>/dev/null| wc -l)"
+
+	i=5
+	eval "files_size_arr$i=$(find "$DIR" -type f -size -10M ! -name ".*" -exec du --exclude="$FILE_ERE" -a {} + 2>/dev/null| wc -l)"
+
+	i=6
+	eval "files_size_arr$i=$(find "$DIR" -type f -size -100M ! -name ".*" -exec du --exclude="$FILE_ERE" -a {} + 2>/dev/null| wc -l)"
+	
+	i=7
+	eval "files_size_arr$i=$(find "$DIR" -type f -size -1024M ! -name ".*" -exec du --exclude="$FILE_ERE" -a {} + 2>/dev/null| wc -l)"
+
+	i=8
+	eval "files_size_arr$i=$NF"
+
+	while [ "$i" -gt 0 ]
+	do
+		num_of_files_by_size i
+		i=$((i - 1))
+	done
+}
+
+wrong_args(){
+	echo "$0: Wrong arguments" >&2
+	echo "Usage: $0 [-i FILE_ERE] [-n] [DIR]" >&2
+	exit 1
+}
+
+#Arguments parsing
+arguments(){
+	if [ "$#" -gt 4 ]
+	then
+		wrong_args
+	fi
+
+	if [ "$#" -eq 1 ]
+	then
+		DIR=$1
+	fi
+
+	while getopts 'i:n?' opt
+	do
+		case $opt in
+			i)
+				FILE_ERE=$OPTARG
+
+				if [ "$FILE_ERE" = "-n" ]
+				then
+					wrong_args
+				fi
+
+				if [ "$3" = "-n" ]
+				then
+					normalisation=0
+				fi
+
+				if [ $normalisation -eq 1 ] #normalisation off
+				then
+					if [ $# -eq 2 ]
+					then
+						DIR=$(pwd)
+					elif [ $# -eq 3 ]
+					then
+						DIR=$3
+					else
+						wrong_args
+					fi
+				fi;;
+			n)
+			  	normalisation=0
+
+			  	if [ $# -eq $OPTIND ]
+			  	then
+			  		for i in "$@"; do :; done
+					DIR=$i
+			  	elif [ $((OPTIND - 1)) -eq $# ]
+			  	then
+			  		DIR=$(pwd)
+			  	else
+			  		wrong_args
+			  	fi;;
+			\?)	
+				wrong_args;;
+		esac	
+	done
+
+	if [ "$FILE_ERE" = "$DIR" ]
+	then
+		echo "Error. FILE_ERE cannot be directory's name" >&2
+		exit 1
+	fi
+}
+
+arguments "$@"
+
+#PATH check
+if [ ! -d "$DIR" ]
+then
+	echo "$DIR was not found."
+	exit 1
+fi
+
+#Directories and files count
+ND=$(du --exclude="$FILE_ERE" --exclude="*/.*" "$DIR" | wc -l )
+if [ "$ND" -eq 0 ]
+then
+	echo "FILE_ERE cannot cover the name of the directory"
+	wrong_args
+fi
+
+NF=$(find "$DIR" -type f ! -name ".*" -exec du --exclude="$FILE_ERE" -a {} + 2>/dev/null| wc -l)
+count_files_size
+
+echo "Root directory: $DIR"
+echo "Directories: $ND"
+echo "All files: $NF"
+echo "File size histogram:"
+
+if [ $normalisation -eq 1 ]
+then
+	print_default
+
+else
+	if [ -t 1 ]
+	then
+		cols=$(tput cols)
+	fi
+	cols=$((cols - 12))
+	find_the_biggest_number
+	if [ "$biggest" -gt "$cols" ]
+	then
+		print_normalised cols
+	else
+		print_default
+	fi
+fi
+
+exit 0

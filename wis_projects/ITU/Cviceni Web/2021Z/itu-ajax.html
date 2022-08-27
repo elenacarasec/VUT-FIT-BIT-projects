@@ -1,0 +1,116 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html>
+<head>
+  <title> ITU ajax </title>
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2" />
+  <style type="text/css">
+  div, input { margin: 10px; }
+  </style>
+</head>
+<body>
+
+<div id="chatArea" style="height: 300px; border: solid #aaa 1px; overflow:auto;"></div> 
+
+<form onsubmit="return uploadData()">
+  <input type="text" id="newMessageString">
+  <input type="submit" value="send">
+</form>
+
+<div id="status" style="border: solid #aaa 1px; ">&nbsp;</div> 
+
+
+<script type="text/javascript">
+
+/***
+  * XMLHttpRequest object constructor (for compatibility with various browsers)
+  */
+
+function createXmlHttpRequestObject() 
+{
+    var request;
+  
+    try
+    {
+        request = new XMLHttpRequest(); // should work on all browsers except IE6 or older
+    } 
+    catch (e) 
+    { 
+        try 
+        {
+            request = new ActiveXObject("Microsoft.XMLHttp"); // browser is IE6 or older
+        }
+        catch (e) 
+        {
+            // ignore error
+        }
+    }
+  
+    if (!request) 
+    {
+        alert("Error creating the XMLHttpRequest object.");
+    } 
+    else 
+    {
+        return request;
+    }
+}
+
+function uploadData()
+{
+    document.getElementById("status").innerHTML = "uploadData()";
+
+    try 
+    {
+        var request = createXmlHttpRequestObject(); // stores XMLHttpRequestObject
+
+        //// put your code here
+	var data = document.getElementById("newMessageString").value;
+        request.open("POST", 'http://pckiss.fit.vutbr.cz/itu/api.php/');
+        request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        request.send("user=xcaras00&data=" + data);
+    } 
+    catch (e) 
+    {
+        alert(e.toString());
+    }
+
+    return false; // to avoid default form submit behavior 
+}
+
+function downloadData() 
+{
+    document.getElementById("status").innerHTML = "downloadData()";
+        var request = createXmlHttpRequestObject();
+        request.open("GET", 'http://pckiss.fit.vutbr.cz/itu/api.php/');
+        request.onreadystatechange = function() // anonymous function (a function without a name).
+        {
+	    var id_arr = []
+            if ((request.readyState == 4) && (request.status == 200)) // process is completed and http status is OK
+            {
+                var pole = JSON.parse(request.responseText);
+                for (var i in pole) {
+			if (id_arr.includes(parseInt(pole[i].id))) {
+			}
+			else {
+				id_arr.push(parseInt(pole[i].id));
+				var login =  pole[i].login + ' : ';
+				var msg = pole[i].cnt + ' ';
+				var timestamp = pole[i].dts + '<br />';
+				var str_to_send = login + msg + '<br />' + timestamp + '<br />';
+                		document.getElementById("chatArea").innerHTML += str_to_send;
+			}
+                }
+            }
+        }
+
+        request.send();
+    //// put your code here
+}
+
+//// put your code here
+setInterval(downloadData, 1000);
+
+</script>
+
+</html>
